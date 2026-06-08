@@ -3,13 +3,15 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>RepRally Sales Tool</title>
+  <title>Northwind Sales Tool</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     html, body { height: 100%; background: #F2F3F5; }
@@ -22,7 +24,7 @@
 <body>
   <div id="root"></div>
   <script type="text/babel">
-    const { useState, useMemo } = React;
+    const { useState, useMemo, useEffect, useRef } = React;
 
     const BRANDS = [
       { id:"smackin", name:"Smackin'", type:"Snack", desc:"Flavoured Sunflower Seeds", deal:"15% Intro Discount", hasDeal:true, margin:55, retail:"$3.49–$4.99", wholesale:"$1.50–$2.20", sellThrough:80, reorder:58, hook:"Viral sunflower seeds — the founder pitched MLB players on camera", tags:["TikTok viral","Younger crowd","MLB fan base"], why:"The founder went to MLB games and asked players to try them on social media. Blew up instantly. Younger customers buy it on sight.", opener:"Are you seeing a lot of younger customers in here? Like 16–30s?", value:"Smackin' went viral when the founder walked into MLB stadiums and got players to try them on camera. Now it's everywhere on social media. Younger customers come in specifically looking for it.", differentiator:"15% intro discount right now. Your competitors probably don't have it yet — you can be the store in the area that does.", pitchLine:"This brand went viral on social media and is super popular amongst younger people. They have a 15% off deal going on right now", shelfGap:["thin_snacks","no_viral_snacks"] },
@@ -67,10 +69,10 @@
     ];
 
     const STATUS_SCRIPTS = {
-      active:  { label:"Active",    color:"#059669", bg:"#F0FDF4", border:"#BBF7D0", days:"1–30 days",     icon:"🟢", opener:"How was your recent order? Do you run low on anything?", script:`"How are you doing? How was your recent order? Do you run low on anything? I see that you ordered [product] — do you need to restock? Right now, we have this deal going on... By the way, we have a huge promo going on for [product]..."`, tip:"Lead with service, then deals. They're happy — build on that goodwill." },
-      cooled:  { label:"Cooled",    color:"#D97706", bg:"#FFFBEB", border:"#FDE68A", days:"30–45 days",    icon:"🟡", opener:"Check in on order, then pitch 2 new deals with urgency", script:`"How are you doing? How was your recent order? Do you run low on anything? I see you ordered [product] — do you need to restock? Right now we have this deal going on... By the way, we have a huge promo on [product]. You've got to take advantage of this."`, tip:"They've slowed down — re-engage with a time-sensitive deal. Create urgency." },
-      churned: { label:"Churned",   color:"#DC2626", bg:"#FEF2F2", border:"#FECACA", days:"45+ days",      icon:"🔴", opener:"Re-introduce RepRally — remind them what they bought", script:`"Hi, is this [owner name] from [store name]? This is [your name] from RepRally. We're a distribution company. You bought [product 1], [product 2] from us with a rep called [last rep name]. Does that ring a bell? I work on the inside sales team at RepRally and I have some personalized deals just for you. These products will sell really well in your store and a lot of them have discounts. Do you have 5 minutes — let me tell you about them."`, tip:"Don't assume they remember you. Re-establish who RepRally is, then go straight to personalized deals." },
-      new:     { label:"New Store", color:"#7C3AED", bg:"#FAF5FF", border:"#E9D5FF", days:"Never ordered", icon:"🆕", opener:"Introduce RepRally + 2-3 anchor products with deals", script:`"Hey, my name is [your name]. We are RepRally, a distribution company in your area. We carry consumer package goods — like Coke and Red Bull, but also Jack Links, David Protein Bar, M&Ms, etc. We also carry smoke products and THC products for smoke stores. I have some products that will sell really well in your store and a lot of them have discounts. Do you have 5 minutes? I'm happy to place an order over the phone or route a rep in to service you."`, tip:"Name-drop brands they already know (Coke, Red Bull, David) to establish credibility first." },
+      active:  { label:"Recent buyer",    color:"#059669", bg:"#F0FDF4", border:"#BBF7D0", days:"1–30 days",     icon:"🟢", opener:"How was your recent order? Do you run low on anything?", script:`"How are you doing? How was your recent order? Do you run low on anything? I see that you ordered [product] — do you need to restock? Right now, we have this deal going on... By the way, we have a huge promo going on for [product]..."`, tip:"Lead with service, then deals. They're happy — build on that goodwill." },
+      cooled:  { label:"Slowing down",    color:"#D97706", bg:"#FFFBEB", border:"#FDE68A", days:"30–45 days",    icon:"🟡", opener:"Check in on order, then pitch 2 new deals with urgency", script:`"How are you doing? How was your recent order? Do you run low on anything? I see you ordered [product] — do you need to restock? Right now we have this deal going on... By the way, we have a huge promo on [product]. You've got to take advantage of this."`, tip:"They've slowed down — re-engage with a time-sensitive deal. Create urgency." },
+      churned: { label:"Hasn't bought lately",   color:"#DC2626", bg:"#FEF2F2", border:"#FECACA", days:"45+ days",      icon:"🔴", opener:"Re-introduce Northwind — remind them what they bought", script:`"Hi, is this [owner name] from [store name]? This is [your name] from Northwind. We're a distribution company. You bought [product 1], [product 2] from us with a rep called [last rep name]. Does that ring a bell? I work on the inside sales team at Northwind and I have some personalized deals just for you. These products will sell really well in your store and a lot of them have discounts. Do you have 5 minutes — let me tell you about them."`, tip:"Don't assume they remember you. Re-establish who Northwind is, then go straight to personalized deals." },
+      new:     { label:"Never ordered", color:"#7C3AED", bg:"#FAF5FF", border:"#E9D5FF", days:"Never ordered", icon:"🆕", opener:"Introduce Northwind + 2-3 anchor products with deals", script:`"Hey, my name is [your name]. We are Northwind, a distribution company in your area. We carry consumer package goods — like Coke and Red Bull, but also Jack Links, David Protein Bar, M&Ms, etc. We also carry smoke products and THC products for smoke stores. I have some products that will sell really well in your store and a lot of them have discounts. Do you have 5 minutes? I'm happy to place an order over the phone or route a rep in to service you."`, tip:"Name-drop brands they already know (Coke, Red Bull, David) to establish credibility first." },
     };
 
     const OBJECTIONS = [
@@ -193,7 +195,7 @@
                     ); })}
                   </div>
                   {closerSel !== null && !closerDone && <div style={{ marginTop:10, background:"#FFFBEB", border:"1.5px solid #FDE68A", borderRadius:12, padding:"12px 14px" }}><div style={{ fontSize:9, fontFamily:"DM Mono", fontWeight:600, color:"#D97706", letterSpacing:"1px", marginBottom:6 }}>SAY THIS →</div><p style={{ fontSize:13, color:"#333", lineHeight:1.65 }}>{CLOSERS[closerSel].script}</p><button onClick={() => setCloserDone(true)} style={{ marginTop:10, width:"100%", padding:"9px", borderRadius:8, border:"none", background:"#D97706", color:"white", fontSize:12, fontWeight:600, cursor:"pointer" }}>✓ Offered — move on</button></div>}
-                  {closerDone && <div style={{ marginTop:10, background:"#F0FDF4", border:"1.5px solid #BBF7D0", borderRadius:12, padding:"12px", textAlign:"center" }}><div style={{ fontSize:20, marginBottom:3 }}>✅</div><div style={{ fontSize:13, fontWeight:600, color:"#059669" }}>{CLOSERS[closerSel].label} offered</div><div style={{ fontSize:11, color:"#777", marginTop:2 }}>Log this visit in RepRally before leaving.</div></div>}
+                  {closerDone && <div style={{ marginTop:10, background:"#F0FDF4", border:"1.5px solid #BBF7D0", borderRadius:12, padding:"12px", textAlign:"center" }}><div style={{ fontSize:20, marginBottom:3 }}>✅</div><div style={{ fontSize:13, fontWeight:600, color:"#059669" }}>{CLOSERS[closerSel].label} offered</div><div style={{ fontSize:11, color:"#777", marginTop:2 }}>Log this visit in Northwind before leaving.</div></div>}
                 </div>
               )}
             </div>
@@ -205,12 +207,12 @@
     const DM_TYPES = [
       {
         id:"owner", icon:"👑", label:"Owner / Boss", signals:["Behind the register alone","Makes decisions on the spot","Says 'my store'","Older, been there a long time"],
-        script:`"Hey, are you the owner? Perfect — I wanted to speak with whoever makes the buying decisions here. I'm [name] from RepRally. We've got a couple of products that are flying off shelves in stores just like yours right now. Do you have 2 minutes?"`,
+        script:`"Hey, are you the owner? Perfect — I wanted to speak with whoever makes the buying decisions here. I'm [name] from Northwind. We've got a couple of products that are flying off shelves in stores just like yours right now. Do you have 2 minutes?"`,
         tip:"Owners want ROI, not features. Lead with 'flying off shelves' + margin. Skip the small talk."
       },
       {
         id:"manager", icon:"🏷️", label:"Manager (not owner)", signals:["Directing staff","Has keys","Says 'I need to check with the owner'"],
-        script:`"Hey, are you the manager? Great — I'm [name] from RepRally, a distribution company. I have some deals on products that are trending right now. Who handles purchasing decisions here — is that you, or someone else I should also speak with?"`,
+        script:`"Hey, are you the manager? Great — I'm [name] from Northwind, a distribution company. I have some deals on products that are trending right now. Who handles purchasing decisions here — is that you, or someone else I should also speak with?"`,
         tip:"Qualify fast. If they can't approve an order, get the owner's name and schedule a time. Don't pitch hard to someone who can't say yes."
       },
       {
@@ -220,7 +222,7 @@
       },
       {
         id:"skeptical", icon:"😐", label:"Busy / dismissive", signals:["Doesn't make eye contact","Short answers","'I don't have time'"],
-        script:`"I totally get it — I'll be quick, 60 seconds. I'm [name] from RepRally. Two things: one, we carry [David Protein / Smackin' / OasisDubai Chocolate] — they're flying right now. Two, there's a deal on them this week. If it's not interesting, no problem. But if it is, I can place the order right here."`,
+        script:`"I totally get it — I'll be quick, 60 seconds. I'm [name] from Northwind. Two things: one, we carry [David Protein / Smackin' / OasisDubai Chocolate] — they're flying right now. Two, there's a deal on them this week. If it's not interesting, no problem. But if it is, I can place the order right here."`,
         tip:"Respect their time out loud, then use it anyway. 60-second hook with a named product and a deal. If they don't bite in 60 sec, leave a card and go."
       },
     ];
@@ -322,7 +324,7 @@
             <div>
               <div style={{ background:"#F8F9FA", borderRadius:12, padding:"12px 14px", marginBottom:14 }}>
                 <div style={{ fontSize:12, fontWeight:600, color:"#111", marginBottom:3 }}>What's this store's order history?</div>
-                <div style={{ fontSize:12, color:"#666", lineHeight:1.5 }}>Check RepRally before you walk in. Your opener completely changes based on this.</div>
+                <div style={{ fontSize:12, color:"#666", lineHeight:1.5 }}>Check Northwind before you walk in. Your opener completely changes based on this.</div>
               </div>
               <div style={{ fontSize:10, fontFamily:"DM Mono", color:"#aaa", letterSpacing:"1px", marginBottom:8 }}>SELECT STORE STATUS</div>
               <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
@@ -568,7 +570,7 @@
     ];
 
     const PUSHBACKS = [
-      { q:"I don't know what RepRally is. Where are you calling from?", a:`"We're RepRally — a distribution company. You might know us from brands like David Protein Bar, Smackin' sunflower seeds, or OasisDubai Chocolate. We work with stores like yours in your area. We handle fulfilment, and you can order directly through our store portal or through one of our reps."` },
+      { q:"I don't know what Northwind is. Where are you calling from?", a:`"We're Northwind — a distribution company. You might know us from brands like David Protein Bar, Smackin' sunflower seeds, or OasisDubai Chocolate. We work with stores like yours in your area. We handle fulfilment, and you can order directly through our store portal or through one of our reps."` },
       { q:"Business is slow. I don't need anything right now.", a:`"I hear you — that's actually exactly why I'm calling. I'm working with stores like yours in your area that are slow, and they're using new products to bring in customers they didn't have before. Give me 2 minutes — I have something that's been moving even in slower stores."` },
       { q:"Your pricing is bad.", a:`"Which products specifically? How much are you getting them for? [Listen.] If someone's cheaper, you should buy from them. But we have 350+ brands, and our top products have pricing and deals you won't find elsewhere. Just take a look at what's moving right now."` },
       { q:"My last rep was bad.", a:`"That's not okay, and I'm sorry. What happened? [Listen.] That's not the experience we want to provide. I'm here to fix it — I can either send you a different rep or set you up on our store portal so you can order directly, no rep needed. There's a $300 buy, get $50 off deal right now while we rebuild that trust."` },
@@ -701,43 +703,256 @@
       );
     }
 
-    function App() {
-      const [screen, setScreen] = useState("home");
-      const TITLES = { home:"RepRally Sales Tool", walkin:"Walk-In Guide", catalog:"What to Pitch", objections:"Objection Handlers", tactics:"Sales Tactics" };
+
+
+    /* ===================== STORE DATA + MAP ===================== */
+    const STORES = [{"id":"111006","name":"Fine Fare","type":"grocery","raw":"sold","ws":"active","lat":40.661465,"lng":-73.915108,"gmv":4140,"ord":9,"last":"2026-03-12","d":1,"gm":700,"vendor":"Eddie F"},{"id":"104068","name":"Super Tasty Deli","type":"foodservice","raw":"reorder","ws":"churned","lat":40.825737,"lng":-73.950584,"gmv":720,"ord":2,"last":"2026-01-20","d":52,"gm":0,"vendor":"Mo M"},{"id":"2185","name":"E&E SOPHIA FARMS","type":"convenience","raw":"reorder","ws":"cooled","lat":40.716717,"lng":-73.901939,"gmv":3240,"ord":13,"last":"2026-01-27","d":45,"gm":1260,"vendor":"Blanca Guambana"},{"id":"511","name":"DEKALB FRESH MARKET","type":"grocery","raw":"reorder","ws":"active","lat":40.692501,"lng":-73.943398,"gmv":5200,"ord":28,"last":"2026-02-19","d":22,"gm":200,"vendor":"Vladimir Kozetk"},{"id":"1317","name":"Wholesome Farms Market","type":"foodservice","raw":"sold","ws":"active","lat":40.701599,"lng":-73.9869,"gmv":11080,"ord":65,"last":"2026-02-20","d":21,"gm":1370,"vendor":"Omar Haimed"},{"id":"73721","name":"High Supply","type":"convenience","raw":"lead","ws":"new","lat":40.691067,"lng":-73.986,"gmv":0,"ord":0,"last":null,"d":null,"gm":0,"vendor":null},{"id":"1098","name":"HANA FOOD","type":"grocery","raw":"lead","ws":"cooled","lat":40.713902,"lng":-73.950996,"gmv":6290,"ord":43,"last":"2026-01-29","d":43,"gm":1470,"vendor":"Vipul Patel"},{"id":"38","name":"Park View Market","type":"convenience","raw":"reorder","ws":"active","lat":40.719898,"lng":-73.954803,"gmv":18760,"ord":38,"last":"2026-02-17","d":24,"gm":1060,"vendor":"Mike Bed"},{"id":"17324","name":"LG Gourmet Deli","type":"other","raw":"lead","ws":"churned","lat":40.688725,"lng":-73.957458,"gmv":700,"ord":1,"last":"2024-07-29","d":592,"gm":0,"vendor":"Franklin N"},{"id":"25800","name":"Knickerbocker Fresh Market","type":"other","raw":"lead","ws":"churned","lat":40.701126,"lng":-73.922073,"gmv":1020,"ord":2,"last":"2025-12-03","d":100,"gm":0,"vendor":"Arafrait Arafrait"},{"id":"1289","name":"DOMINO GOURMET DELI","type":"convenience","raw":"lead","ws":"churned","lat":40.7141,"lng":-73.965103,"gmv":5540,"ord":24,"last":"2026-01-06","d":66,"gm":0,"vendor":"Mohammad Miang"},{"id":"1204","name":"Ideal Food Basket","type":"grocery","raw":"lead","ws":"churned","lat":40.6721,"lng":-73.950104,"gmv":2360,"ord":6,"last":"2025-10-14","d":150,"gm":0,"vendor":"Anthony Ideal Food"},{"id":"77211","name":"Metro Organic Food","type":"other","raw":"lead","ws":"churned","lat":40.712738,"lng":-73.885376,"gmv":680,"ord":2,"last":"2024-10-08","d":521,"gm":0,"vendor":"Saheel Patel"},{"id":"2144","name":"FOREST MINI MARKET","type":"grocery","raw":"reorder","ws":"active","lat":40.6908,"lng":-73.9086,"gmv":3540,"ord":12,"last":"2026-02-25","d":16,"gm":330,"vendor":"Antonia Quechol"},{"id":"2192","name":"Hudson Food Market","type":"convenience","raw":"reorder","ws":"cooled","lat":40.750099,"lng":-73.937202,"gmv":9200,"ord":29,"last":"2026-02-04","d":37,"gm":840,"vendor":"Assem Saleh"},{"id":"1240","name":"GREENE-VILLE GARDEN","type":"grocery","raw":"lead","ws":"churned","lat":40.693401,"lng":-73.971298,"gmv":9710,"ord":22,"last":"2026-01-10","d":62,"gm":0,"vendor":"Benito Martinez"},{"id":"23986","name":"Rahab Grocery and Tobacco","type":"other","raw":"reorder","ws":"cooled","lat":40.701031,"lng":-73.922028,"gmv":1880,"ord":8,"last":"2026-02-10","d":31,"gm":400,"vendor":"Mohammad A"},{"id":"88816","name":"FARM FRESH DELI","type":"foodservice","raw":"reorder","ws":"cooled","lat":40.676815,"lng":-73.963417,"gmv":1020,"ord":3,"last":"2026-02-02","d":39,"gm":0,"vendor":"Habeeb C"},{"id":"248","name":"FOODCELLAR MARKET","type":"grocery","raw":"lead","ws":"churned","lat":40.748199,"lng":-73.943001,"gmv":4600,"ord":9,"last":"2025-03-24","d":354,"gm":0,"vendor":"Joaquin Tapia"},{"id":"80216","name":"Village Bites","type":"tobacco","raw":"sold","ws":"active","lat":40.72953,"lng":-73.980682,"gmv":5780,"ord":17,"last":"2026-03-03","d":10,"gm":280,"vendor":"Eli S"},{"id":"94741","name":"NY Smoke Shop","type":"tobacco","raw":"reorder","ws":"active","lat":41.868729,"lng":-71.424789,"gmv":3390,"ord":19,"last":"2026-03-04","d":9,"gm":730,"vendor":"Hisham Mahdy"},{"id":"26562","name":"191 York St","type":"other","raw":"lead","ws":"new","lat":40.701546,"lng":-73.98317,"gmv":0,"ord":0,"last":null,"d":null,"gm":0,"vendor":"Deli Corp C"},{"id":"4388","name":"Foodtown","type":"grocery","raw":"reorder","ws":"churned","lat":40.670002,"lng":-73.985229,"gmv":3280,"ord":15,"last":"2026-01-21","d":51,"gm":0,"vendor":"Nader F"},{"id":"5772","name":"Montrose Marketplace","type":"foodservice","raw":"reorder","ws":"churned","lat":40.709801,"lng":-73.954353,"gmv":1360,"ord":2,"last":"2026-01-09","d":63,"gm":0,"vendor":"Jay M"},{"id":"14871","name":"Rock N Roots","type":"foodservice","raw":"reorder","ws":"cooled","lat":40.756828,"lng":-73.645386,"gmv":2950,"ord":15,"last":"2026-01-31","d":41,"gm":1440,"vendor":"Dina Martinez"},{"id":"1828","name":"GALAXY FOOD MARKET","type":"convenience","raw":"reorder","ws":"active","lat":40.701698,"lng":-73.923897,"gmv":6900,"ord":22,"last":"2026-02-20","d":21,"gm":570,"vendor":"Hamzh Zindani"},{"id":"435","name":"Food is Love SUPERMARKET","type":"grocery","raw":"reorder","ws":"churned","lat":40.755501,"lng":-73.912102,"gmv":15550,"ord":33,"last":"2026-01-20","d":52,"gm":0,"vendor":"Giovanni Guallpa"},{"id":"6063","name":"Awesome Deli","type":"convenience","raw":"lead","ws":"new","lat":40.7104,"lng":-73.966301,"gmv":0,"ord":0,"last":null,"d":null,"gm":0,"vendor":"Jamal Awesome"},{"id":"47","name":"Lorimer Deli & Grocery","type":"convenience","raw":"lead","ws":"churned","lat":40.714298,"lng":-73.949203,"gmv":1180,"ord":1,"last":"2023-06-14","d":1003,"gm":0,"vendor":"Kawsar Haque"},{"id":"19378","name":"WILSON SHOP","type":"tobacco","raw":"reorder","ws":"cooled","lat":40.692902,"lng":-73.911514,"gmv":10000,"ord":22,"last":"2026-01-28","d":44,"gm":0,"vendor":"Nassar L"},{"id":"64","name":"Galaxy Deli","type":"convenience","raw":"sold","ws":"active","lat":40.699902,"lng":-73.912102,"gmv":4480,"ord":19,"last":"2026-03-11","d":2,"gm":0,"vendor":"Mike Ali"},{"id":"54","name":"L Stop Gourmet Deli","type":"convenience","raw":"sold","ws":"active","lat":40.707802,"lng":-73.940201,"gmv":3720,"ord":16,"last":"2026-03-10","d":3,"gm":1450,"vendor":"Ali H"},{"id":"18437","name":"Montrose Deli","type":"other","raw":"lead","ws":"churned","lat":40.7076,"lng":-73.941704,"gmv":1510,"ord":2,"last":"2024-08-15","d":575,"gm":0,"vendor":"Ali Muntaser"},{"id":"95452","name":"Lafayette Grocery and Dairy","type":"grocery","raw":"lead","ws":"active","lat":40.687603,"lng":-73.972557,"gmv":4880,"ord":18,"last":"2026-03-12","d":1,"gm":250,"vendor":"Mani M"},{"id":"1135","name":"BEER SHACK","type":"liquor","raw":"reorder","ws":"active","lat":40.766602,"lng":-73.916496,"gmv":11270,"ord":44,"last":"2026-02-19","d":22,"gm":790,"vendor":"Damo Patel"},{"id":"491","name":"RIVERSIDE MARKET","type":"grocery","raw":"reorder","ws":"active","lat":40.709999,"lng":-74.016899,"gmv":21400,"ord":65,"last":"2026-02-20","d":21,"gm":1300,"vendor":"SUNGJOON LEE"},{"id":"1996","name":"LUMINESCENCE MARKET","type":"grocery","raw":"sold","ws":"active","lat":40.742039,"lng":-73.959129,"gmv":19800,"ord":40,"last":"2026-03-04","d":9,"gm":1160,"vendor":"Omar Sn"},{"id":"3659","name":"VITTORIA MERCATO","type":"foodservice","raw":"lead","ws":"new","lat":40.718334,"lng":-73.957451,"gmv":0,"ord":0,"last":null,"d":null,"gm":0,"vendor":"Joe Mercato"},{"id":"1827","name":"BIG CHIEF EXOTICS","type":"convenience","raw":"sold","ws":"active","lat":40.701698,"lng":-73.923798,"gmv":10000,"ord":29,"last":"2026-03-02","d":11,"gm":680,"vendor":"Ismael Zindani"},{"id":"63","name":"Dominguez Grocery","type":"convenience","raw":"lead","ws":"churned","lat":40.7038,"lng":-73.930801,"gmv":630,"ord":2,"last":"2023-08-07","d":949,"gm":0,"vendor":"Jay Velez"},{"id":"15134","name":"Royal Deli And Grill","type":"convenience","raw":"reorder","ws":"cooled","lat":40.703701,"lng":-73.926697,"gmv":8090,"ord":15,"last":"2026-02-04","d":37,"gm":1340,"vendor":"Abdul Shaibi"},{"id":"282","name":"Met Fresh of BedStuy","type":"grocery","raw":"lead","ws":"churned","lat":40.683102,"lng":-73.944099,"gmv":1610,"ord":3,"last":"2023-12-15","d":819,"gm":0,"vendor":"Donald Edwards"},{"id":"13844","name":"Jewel Pharmacy","type":"gas","raw":"sold","ws":"active","lat":40.7313,"lng":-73.809898,"gmv":4580,"ord":13,"last":"2026-03-06","d":7,"gm":420,"vendor":"Ralph Santiago"},{"id":"113560","name":"Henry St. Mini Mart","type":"grocery","raw":"reorder","ws":"cooled","lat":40.698151,"lng":-73.992508,"gmv":1640,"ord":3,"last":"2026-01-30","d":42,"gm":240,"vendor":"Khalid S"},{"id":"72644","name":"Harvest Valley Fruit and Juice","type":"other","raw":"reorder","ws":"cooled","lat":40.686424,"lng":-73.923676,"gmv":1740,"ord":9,"last":"2026-01-30","d":42,"gm":0,"vendor":"Adam Zandani"},{"id":"2374","name":"VITIS CORNER MARKET","type":"grocery","raw":"lead","ws":"churned","lat":40.7001,"lng":-73.929001,"gmv":900,"ord":1,"last":"2024-02-10","d":762,"gm":0,"vendor":"Manuel Fernandez"},{"id":"1917","name":"Juda Gourmet Market","type":"foodservice","raw":"reorder","ws":"churned","lat":40.699799,"lng":-73.927399,"gmv":4740,"ord":11,"last":"2026-01-15","d":57,"gm":0,"vendor":"Antonio Utuy"},{"id":"113189","name":"Palmetto Vapor & Tobacco LLC","type":"other","raw":"lead","ws":"churned","lat":34.62043,"lng":-82.471191,"gmv":1020,"ord":2,"last":"2026-01-05","d":67,"gm":0,"vendor":"Hashim A"},{"id":"112128","name":"LaGuardia Gourmet Deli","type":"convenience","raw":"lead","ws":"churned","lat":40.743671,"lng":-73.925423,"gmv":900,"ord":1,"last":"2025-11-13","d":120,"gm":0,"vendor":"Zak M"},{"id":"18078","name":"Fresh one deli & grill","type":"foodservice","raw":"reorder","ws":"cooled","lat":40.762966,"lng":-73.921089,"gmv":7280,"ord":18,"last":"2026-02-10","d":31,"gm":0,"vendor":"Ali Deli"},{"id":"2275","name":"GREEN PARK DELI","type":"foodservice","raw":"reorder","ws":"cooled","lat":40.781898,"lng":-73.975899,"gmv":2700,"ord":16,"last":"2026-01-30","d":42,"gm":0,"vendor":"Gurjit Sing"},{"id":"112871","name":"World Mart NY 2","type":"grocery","raw":"sold","ws":"active","lat":40.335201,"lng":-74.063759,"gmv":1960,"ord":3,"last":"2026-03-05","d":8,"gm":0,"vendor":"Mohammed Alsaidi"},{"id":"2419","name":"86 DELI & GRILL","type":"convenience","raw":"lead","ws":"churned","lat":40.6049,"lng":-73.998299,"gmv":3220,"ord":5,"last":"2025-09-26","d":168,"gm":0,"vendor":"Saleh & Murad Name"},{"id":"2556","name":"WESTSIDE MARKET NYC","type":"grocery","raw":"lead","ws":"churned","lat":40.743801,"lng":-73.995499,"gmv":410,"ord":1,"last":"2024-02-16","d":756,"gm":0,"vendor":"Michael Bonanza"},{"id":"3623","name":"GREENPOT","type":"foodservice","raw":"lead","ws":"churned","lat":40.729801,"lng":-73.957199,"gmv":4500,"ord":15,"last":"2026-01-10","d":62,"gm":0,"vendor":"Anna Park"},{"id":"2311","name":"YORK DELI","type":"convenience","raw":"reorder","ws":"cooled","lat":40.771099,"lng":-73.950401,"gmv":1060,"ord":3,"last":"2026-01-30","d":42,"gm":680,"vendor":"Alex Garc\u00eda"},{"id":"104496","name":"Evergreen Marketplace","type":"grocery","raw":"sold","ws":"active","lat":40.739498,"lng":-73.961464,"gmv":3790,"ord":8,"last":"2026-03-05","d":8,"gm":360,"vendor":"Yaya Sam"},{"id":"80337","name":"Slice 'N Spice Deli & Grill","type":"convenience","raw":"sold","ws":"active","lat":40.743847,"lng":-73.979248,"gmv":5580,"ord":12,"last":"2026-03-13","d":0,"gm":0,"vendor":"Deen Did"},{"id":"127","name":"BROADWAY FARM","type":"grocery","raw":"lead","ws":"churned","lat":40.787899,"lng":-73.977303,"gmv":2900,"ord":6,"last":"2025-03-20","d":358,"gm":0,"vendor":"JOAQUIN GARCIA"},{"id":"509","name":"7TH AVE GOURMET INC","type":"convenience","raw":"reorder","ws":"active","lat":40.6749,"lng":-73.974899,"gmv":6340,"ord":28,"last":"2026-02-25","d":16,"gm":470,"vendor":"Ahmed Shami"},{"id":"2202","name":"Steinway Gourmet Deli","type":"convenience","raw":"reorder","ws":"churned","lat":40.758202,"lng":-73.919998,"gmv":7920,"ord":18,"last":"2025-12-10","d":93,"gm":0,"vendor":"Abdulatef Almualiki"},{"id":"19190","name":"Staduim Convenience","type":"convenience","raw":"lead","ws":"churned","lat":40.678299,"lng":-73.968803,"gmv":390,"ord":1,"last":"2024-05-28","d":654,"gm":0,"vendor":"Gamal Vander"},{"id":"1433","name":"VANDERBILT GREEN MARKET","type":"grocery","raw":"reorder","ws":"cooled","lat":40.6772,"lng":-73.968803,"gmv":6720,"ord":15,"last":"2026-02-09","d":32,"gm":370,"vendor":"Ugyen Ugyen"},{"id":"1900","name":"400 organic and natural.","type":"other","raw":"lead","ws":"churned","lat":40.710701,"lng":-73.963997,"gmv":1200,"ord":1,"last":"2024-01-24","d":779,"gm":0,"vendor":"Tawfik Alzubair"},{"id":"19183","name":"Messina Market","type":"foodservice","raw":"reorder","ws":"churned","lat":40.842499,"lng":-73.536697,"gmv":8560,"ord":30,"last":"2026-01-15","d":57,"gm":0,"vendor":"Jennifer Bowles"},{"id":"5990","name":"Greenpoint Organic Market Inc.","type":"convenience","raw":"sold","ws":"active","lat":40.723724,"lng":-73.950607,"gmv":1290,"ord":7,"last":"2026-03-02","d":11,"gm":0,"vendor":"Ali Greenpoint Deli"},{"id":"94297","name":"Moonlight Deli & Grill","type":"foodservice","raw":"sold","ws":"active","lat":40.700508,"lng":-73.920944,"gmv":3130,"ord":19,"last":"2026-03-04","d":9,"gm":0,"vendor":"Yaseen J"},{"id":"2094","name":"GREENE BITES","type":"foodservice","raw":"reorder","ws":"active","lat":40.689701,"lng":-73.978104,"gmv":3100,"ord":15,"last":"2026-03-13","d":0,"gm":400,"vendor":"Musa Musa"},{"id":"81683","name":"Healthy Friends Deli & Juice Bar","type":"foodservice","raw":"reorder","ws":"active","lat":40.680775,"lng":-73.914185,"gmv":3080,"ord":13,"last":"2026-03-02","d":11,"gm":1260,"vendor":"Emad Zandani"},{"id":"1094","name":"BROOKLYN STANDARD DELI","type":"foodservice","raw":"sold","ws":"active","lat":40.7253,"lng":-73.945602,"gmv":13330,"ord":64,"last":"2026-03-11","d":2,"gm":1380,"vendor":"Abraham Mubariz"},{"id":"72043","name":"Express One deli & Grocery","type":"convenience","raw":"sold","ws":"active","lat":40.762669,"lng":-73.875,"gmv":4250,"ord":12,"last":"2026-03-05","d":8,"gm":0,"vendor":"Sam Nazi"},{"id":"1367","name":"Superior Juicebar and Grill","type":"other","raw":"lead","ws":"churned","lat":40.680199,"lng":-73.843903,"gmv":4290,"ord":7,"last":"2025-09-03","d":191,"gm":0,"vendor":"Manny M"},{"id":"113826","name":"Amigo\u2019s deli & grocery","type":"grocery","raw":"lead","ws":"new","lat":40.761627,"lng":-73.865959,"gmv":0,"ord":0,"last":null,"d":null,"gm":0,"vendor":"Mike P"},{"id":"97414","name":"Ali Baba Bazaar","type":"grocery","raw":"lead","ws":"churned","lat":40.707825,"lng":-73.897873,"gmv":1150,"ord":2,"last":"2025-10-01","d":163,"gm":0,"vendor":"Aziz Alibaba"},{"id":"1903","name":"MINI MART","type":"convenience","raw":"reorder","ws":"active","lat":40.723701,"lng":-73.939102,"gmv":40090,"ord":82,"last":"2026-02-25","d":16,"gm":1520,"vendor":"Minesh Patel"},{"id":"83","name":"Wyckoff newsstand corp","type":"grocery","raw":"lead","ws":"churned","lat":40.699902,"lng":-73.9114,"gmv":830,"ord":1,"last":"2023-07-28","d":959,"gm":0,"vendor":"Zac Hus"},{"id":"3029","name":"WHOLESOME GOURMET DELI","type":"grocery","raw":"sold","ws":"active","lat":40.724201,"lng":-73.950203,"gmv":13940,"ord":39,"last":"2026-03-05","d":8,"gm":650,"vendor":"Monthana Shuaebi"},{"id":"18706","name":"Ubi Market","type":"grocery","raw":"reorder","ws":"churned","lat":40.711601,"lng":-73.946098,"gmv":1710,"ord":7,"last":"2026-01-16","d":56,"gm":0,"vendor":"Jay Kang"},{"id":"220","name":"KING NATURAL DELI","type":"convenience","raw":"lead","ws":"churned","lat":40.6838,"lng":-73.944199,"gmv":610,"ord":2,"last":"2024-01-23","d":780,"gm":0,"vendor":"LUIS DIAZ"},{"id":"15594","name":"Graham Garden","type":"other","raw":"lead","ws":"cooled","lat":40.715302,"lng":-73.944702,"gmv":6460,"ord":14,"last":"2026-01-29","d":43,"gm":590,"vendor":"Vipul Patel"},{"id":"93381","name":"707 Delicatessen","type":"foodservice","raw":"sold","ws":"active","lat":40.70083,"lng":-73.89623,"gmv":1180,"ord":9,"last":"2026-03-06","d":7,"gm":0,"vendor":"Belal Mubarez"},{"id":"1205","name":"LASSEN & HENNIGS","type":"foodservice","raw":"sold","ws":"active","lat":40.694801,"lng":-73.994919,"gmv":4130,"ord":26,"last":"2026-03-12","d":1,"gm":200,"vendor":"Danny Calfa"},{"id":"70847","name":"Fire House Deli 2","type":"other","raw":"reorder","ws":"churned","lat":40.688843,"lng":-73.905281,"gmv":2100,"ord":7,"last":"2026-01-13","d":59,"gm":0,"vendor":"Khamut Khamutttt"},{"id":"151","name":"APPLETREE MARKET","type":"convenience","raw":"lead","ws":"churned","lat":40.809399,"lng":-73.9589,"gmv":2160,"ord":5,"last":"2024-03-29","d":714,"gm":0,"vendor":"TAKIS KATSOULIS"},{"id":"26899","name":"Green Deli Mart and Grill","type":"convenience","raw":"reorder","ws":"active","lat":40.691265,"lng":-73.927414,"gmv":1470,"ord":3,"last":"2026-02-20","d":21,"gm":1240,"vendor":"Ali A"},{"id":"23720","name":"Premier Marketplace","type":"convenience","raw":"sold","ws":"active","lat":40.727436,"lng":-73.958992,"gmv":2980,"ord":12,"last":"2026-03-04","d":9,"gm":0,"vendor":"Abdul Premier"},{"id":"16756","name":"Dumbo Market","type":"grocery","raw":"sold","ws":"active","lat":40.684914,"lng":-73.99157,"gmv":15830,"ord":37,"last":"2026-03-12","d":1,"gm":1110,"vendor":"Angelo Dumbo Market"},{"id":"3281","name":"SMOKEEZ","type":"other","raw":"lead","ws":"churned","lat":40.713902,"lng":-73.951302,"gmv":520,"ord":1,"last":"2024-03-08","d":735,"gm":0,"vendor":"Alex Suriel"},{"id":"5235","name":"Beyond Natural","type":"grocery","raw":"sold","ws":"active","lat":40.707699,"lng":-73.941299,"gmv":7660,"ord":45,"last":"2026-03-10","d":3,"gm":0,"vendor":"Robert Robert"},{"id":"79981","name":"7-Eleven","type":"convenience","raw":"lead","ws":"new","lat":40.736687,"lng":-73.857239,"gmv":0,"ord":0,"last":null,"d":null,"gm":0,"vendor":null},{"id":"96885","name":"Fire House Deli & Grill","type":"foodservice","raw":"lead","ws":"churned","lat":40.698372,"lng":-73.933662,"gmv":1640,"ord":4,"last":"2025-08-27","d":198,"gm":0,"vendor":"Muhammed Fadl"},{"id":"96184","name":"Mr. Carrot Deli & Grill","type":"other","raw":"reorder","ws":"active","lat":40.703762,"lng":-73.930542,"gmv":4770,"ord":13,"last":"2026-02-24","d":17,"gm":0,"vendor":"Tony B"},{"id":"1138","name":"NY GREEN CONVENIENCE","type":"convenience","raw":"sold","ws":"active","lat":40.7216,"lng":-73.947304,"gmv":3040,"ord":16,"last":"2026-03-03","d":10,"gm":0,"vendor":"Rogers Ali"},{"id":"6357","name":"Ikraveit Foods","type":"foodservice","raw":"sold","ws":"active","lat":40.759899,"lng":-73.928398,"gmv":2800,"ord":6,"last":"2026-03-02","d":11,"gm":830,"vendor":"Syed Ikraveit"},{"id":"25197","name":"Gourmet deli","type":"other","raw":"reorder","ws":"active","lat":40.702808,"lng":-73.92907,"gmv":1130,"ord":5,"last":"2026-02-20","d":21,"gm":1240,"vendor":"R M"},{"id":"6578","name":"Fresh Deli","type":"foodservice","raw":"lead","ws":"churned","lat":40.711899,"lng":-73.900597,"gmv":1190,"ord":3,"last":"2025-09-29","d":165,"gm":0,"vendor":"Adel Ayad"},{"id":"104331","name":"Quincy Market","type":"convenience","raw":"sold","ws":"active","lat":40.687077,"lng":-73.950653,"gmv":3210,"ord":9,"last":"2026-03-02","d":11,"gm":650,"vendor":"Mohammed Kaid"},{"id":"100","name":"Pratt Gourmet & Deli Corp","type":"convenience","raw":"sold","ws":"active","lat":40.694099,"lng":-73.962097,"gmv":6930,"ord":41,"last":"2026-03-02","d":11,"gm":0,"vendor":"Sam Pratt"},{"id":"281","name":"Food Garden Market","type":"grocery","raw":"reorder","ws":"active","lat":40.677299,"lng":-73.955704,"gmv":24960,"ord":62,"last":"2026-03-04","d":9,"gm":1250,"vendor":"William Duran"},{"id":"77684","name":"Mr. Kiwi (Fulton)","type":"other","raw":"lead","ws":"new","lat":40.683056,"lng":-73.964165,"gmv":0,"ord":0,"last":null,"d":null,"gm":0,"vendor":null},{"id":"1560","name":"LATENIGHT DELI 2","type":"convenience","raw":"reorder","ws":"active","lat":40.714802,"lng":-73.938904,"gmv":2250,"ord":17,"last":"2026-02-20","d":21,"gm":0,"vendor":"Ali H"},{"id":"111777","name":"HEAVENLY MARKET HUDSON YARDS","type":"other","raw":"lead","ws":"churned","lat":40.7528,"lng":-74.004021,"gmv":410,"ord":1,"last":"2025-11-07","d":126,"gm":0,"vendor":"Moe Moe"},{"id":"2941","name":"MR. KIWI","type":"other","raw":"lead","ws":"cooled","lat":40.683102,"lng":-73.964104,"gmv":10660,"ord":31,"last":"2026-01-29","d":43,"gm":960,"vendor":"Donghoon Han"},{"id":"1861","name":"Mayberry Market","type":"convenience","raw":"sold","ws":"active","lat":40.723228,"lng":-73.995872,"gmv":1820,"ord":11,"last":"2026-03-03","d":10,"gm":940,"vendor":"Marina Tamar"},{"id":"17867","name":"Vittoria Mercato","type":"other","raw":"lead","ws":"active","lat":40.7183,"lng":-73.957397,"gmv":7430,"ord":26,"last":"2026-03-12","d":1,"gm":0,"vendor":"Joseph Greco"},{"id":"2341","name":"DUMBO MARKET","type":"grocery","raw":"lead","ws":"churned","lat":40.685101,"lng":-73.991501,"gmv":960,"ord":2,"last":"2025-11-04","d":129,"gm":0,"vendor":"Asad Asad"},{"id":"2470","name":"GREEN VALLEY MART","type":"foodservice","raw":"sold","ws":"active","lat":40.723202,"lng":-73.944901,"gmv":27880,"ord":57,"last":"2026-03-09","d":4,"gm":0,"vendor":"Willie Zandani"},{"id":"16505","name":"American Metro","type":"foodservice","raw":"reorder","ws":"active","lat":40.713902,"lng":-73.952698,"gmv":16840,"ord":40,"last":"2026-03-02","d":11,"gm":0,"vendor":"Hisham Mahdy"},{"id":"111035","name":"Quick Stop","type":"other","raw":"reorder","ws":"cooled","lat":41.989296,"lng":-73.969749,"gmv":590,"ord":2,"last":"2026-02-09","d":32,"gm":260,"vendor":"Sunil D"},{"id":"3506","name":"KNICKERSHOP","type":"tobacco","raw":"reorder","ws":"cooled","lat":40.703899,"lng":-73.926903,"gmv":6990,"ord":15,"last":"2026-02-10","d":31,"gm":780,"vendor":"Ali Ahmed"},{"id":"4775","name":"Apple Eats","type":"foodservice","raw":"reorder","ws":"cooled","lat":40.707764,"lng":-73.94001,"gmv":350,"ord":2,"last":"2026-01-28","d":44,"gm":0,"vendor":"Ali Mon"},{"id":"1208","name":"JUBILEE MARKETPLACE","type":"grocery","raw":"lead","ws":"cooled","lat":40.732101,"lng":-73.959801,"gmv":17840,"ord":45,"last":"2026-01-29","d":43,"gm":260,"vendor":"Jesus Alvarez"},{"id":"73725","name":"NYC Fresh Market","type":"grocery","raw":"lead","ws":"new","lat":40.693443,"lng":-73.982956,"gmv":0,"ord":0,"last":null,"d":null,"gm":0,"vendor":null},{"id":"85800","name":"Older Brooklyn Bagel Shoppe","type":"foodservice","raw":"sold","ws":"active","lat":40.677742,"lng":-73.968628,"gmv":6920,"ord":18,"last":"2026-03-09","d":4,"gm":0,"vendor":"Franky Assad"},{"id":"74738","name":"Mr. DELI & GRILL","type":"convenience","raw":"reorder","ws":"active","lat":40.695137,"lng":-73.928665,"gmv":2620,"ord":13,"last":"2026-02-25","d":16,"gm":620,"vendor":"Mohqmmed Mohammed"},{"id":"2102","name":"NATURAL VALLEY MARKET","type":"convenience","raw":"sold","ws":"active","lat":40.683605,"lng":-73.923012,"gmv":15120,"ord":46,"last":"2026-03-10","d":3,"gm":0,"vendor":"Adam Zandani"},{"id":"164","name":"FARM COUNTRY SUPERMARKET","type":"grocery","raw":"lead","ws":"cooled","lat":40.7621,"lng":-73.9179,"gmv":2720,"ord":6,"last":"2026-01-30","d":42,"gm":0,"vendor":"CHRISTIAN AZCONA"},{"id":"2079","name":"BRAVO SUPERMARKET","type":"grocery","raw":"lead","ws":"churned","lat":40.6922,"lng":-73.942001,"gmv":770,"ord":1,"last":"2024-02-20","d":752,"gm":0,"vendor":"Carlos Hernandez"},{"id":"2236","name":"Jury Market 1 Corp","type":"grocery","raw":"lead","ws":"churned","lat":40.687099,"lng":-73.954903,"gmv":590,"ord":1,"last":"2024-02-07","d":765,"gm":0,"vendor":"Errera Santos"},{"id":"19491","name":"Foodtown of Brooklyn Heights","type":"grocery","raw":"lead","ws":"churned","lat":40.69297,"lng":-73.992783,"gmv":22480,"ord":48,"last":"2025-12-10","d":93,"gm":0,"vendor":"Samuel Manager"},{"id":"217","name":"Inner Organic Market","type":"convenience","raw":"sold","ws":"active","lat":40.6824,"lng":-73.943604,"gmv":16080,"ord":38,"last":"2026-03-10","d":3,"gm":670,"vendor":"Mo Store"},{"id":"26568","name":"Dumbo Gourmet Deli (Dumbo Gourmet Corp)","type":"other","raw":"lead","ws":"churned","lat":40.701534,"lng":-73.984558,"gmv":910,"ord":1,"last":"2025-06-30","d":256,"gm":0,"vendor":"Sameer Z"},{"id":"85966","name":"Stop 1","type":"grocery","raw":"reorder","ws":"active","lat":40.677547,"lng":-74.013031,"gmv":5180,"ord":10,"last":"2026-02-24","d":17,"gm":950,"vendor":"Aiman D"},{"id":"726","name":"West 4th Market Place","type":"convenience","raw":"reorder","ws":"cooled","lat":40.732307,"lng":-74.00074,"gmv":1810,"ord":6,"last":"2026-01-30","d":42,"gm":0,"vendor":"Abdhul Albashah"},{"id":"1139","name":"HORTON\u2019S MARKET!","type":"grocery","raw":"lead","ws":"cooled","lat":40.7677,"lng":-73.93,"gmv":13070,"ord":36,"last":"2026-01-28","d":44,"gm":0,"vendor":"John Horton"},{"id":"1882","name":"ONE STOP DELI AND MORE","type":"convenience","raw":"lead","ws":"churned","lat":40.689701,"lng":-73.939003,"gmv":320,"ord":2,"last":"2024-08-12","d":578,"gm":0,"vendor":"Ayed Ali"},{"id":"69","name":"Beyond Natural Market","type":"grocery","raw":"lead","ws":"churned","lat":40.707802,"lng":-73.941101,"gmv":4880,"ord":12,"last":"2025-01-06","d":431,"gm":0,"vendor":"Robert Kim"},{"id":"103442","name":"Galaxy Convenience Store","type":"convenience","raw":"reorder","ws":"cooled","lat":40.708431,"lng":-73.953003,"gmv":2960,"ord":7,"last":"2026-02-10","d":31,"gm":580,"vendor":"Andres M"},{"id":"1234","name":"RACHEL'S GARDEN","type":"grocery","raw":"reorder","ws":"active","lat":40.7243,"lng":-73.948898,"gmv":13160,"ord":34,"last":"2026-02-26","d":15,"gm":850,"vendor":"JHONATAN GARCIA"},{"id":"265","name":"HUDSON MARKET 57","type":"grocery","raw":"sold","ws":"active","lat":40.770802,"lng":-73.991699,"gmv":6020,"ord":33,"last":"2026-03-13","d":0,"gm":720,"vendor":"Mr. Yu"},{"id":"24734","name":"Bread & Butter Delicatessen & Market","type":"convenience","raw":"sold","ws":"active","lat":40.71117,"lng":-73.950951,"gmv":3050,"ord":13,"last":"2026-03-09","d":4,"gm":0,"vendor":"Marco Grocery"},{"id":"1885","name":"KEY FOOD SUPERMARKETS","type":"grocery","raw":"sold","ws":"active","lat":40.682899,"lng":-73.963203,"gmv":7510,"ord":15,"last":"2026-03-09","d":4,"gm":0,"vendor":"Rocky Amed"},{"id":"113782","name":"Tobacco & Vape Hub LLC","type":"tobacco","raw":"lead","ws":"churned","lat":34.479778,"lng":-82.647224,"gmv":1450,"ord":2,"last":"2025-12-24","d":79,"gm":0,"vendor":"Hashim M"},{"id":"222","name":"Downtown Natural Market","type":"grocery","raw":"reorder","ws":"active","lat":40.6493,"lng":-73.963799,"gmv":2300,"ord":13,"last":"2026-02-26","d":15,"gm":0,"vendor":"Amit Patel"},{"id":"278","name":"Met Fresh of Bed-Stuy","type":"grocery","raw":"lead","ws":"churned","lat":40.683086,"lng":-73.944077,"gmv":18420,"ord":65,"last":"2026-01-03","d":69,"gm":0,"vendor":"Pedro Metfresh"},{"id":"14155","name":"Met Fresh of Ridgewood","type":"grocery","raw":"reorder","ws":"active","lat":40.705978,"lng":-73.895882,"gmv":5920,"ord":29,"last":"2026-02-24","d":17,"gm":380,"vendor":"Florentino Metfresh"},{"id":"2262","name":"RIDGEWOOD DELI","type":"convenience","raw":"reorder","ws":"cooled","lat":40.705093,"lng":-73.901932,"gmv":2330,"ord":9,"last":"2026-02-06","d":35,"gm":0,"vendor":"Mohamed Alpdnei"},{"id":"72646","name":"Organic Fresh Market","type":"grocery","raw":"reorder","ws":"churned","lat":40.687904,"lng":-73.919739,"gmv":810,"ord":2,"last":"2026-01-16","d":56,"gm":0,"vendor":"Salah Kaled"},{"id":"3629","name":"AWESOME DELI","type":"foodservice","raw":"lead","ws":"cooled","lat":40.7103,"lng":-73.966003,"gmv":8370,"ord":19,"last":"2026-01-28","d":44,"gm":0,"vendor":"JAMAL AWESOME"},{"id":"14057","name":"Met Fresh of Bushwick","type":"grocery","raw":"reorder","ws":"cooled","lat":40.698799,"lng":-73.920998,"gmv":3390,"ord":12,"last":"2026-01-28","d":44,"gm":0,"vendor":"Omar Metfresh"},{"id":"3949","name":"Sip & Savior","type":"other","raw":"reorder","ws":"churned","lat":40.652996,"lng":-73.949997,"gmv":1280,"ord":3,"last":"2024-12-16","d":452,"gm":0,"vendor":"Hussien Hussien"},{"id":"1565","name":"Elly's Market","type":"convenience","raw":"sold","ws":"active","lat":40.6894,"lng":-73.969803,"gmv":13580,"ord":36,"last":"2026-03-11","d":2,"gm":0,"vendor":"Edgar Galindo"},{"id":"96981","name":"Garden Gourmet Deli and Grill","type":"foodservice","raw":"sold","ws":"active","lat":40.683529,"lng":-73.999557,"gmv":1550,"ord":10,"last":"2026-03-09","d":4,"gm":0,"vendor":"Khalid S"},{"id":"96226","name":"Myrtle Town Deli Grill","type":"convenience","raw":"reorder","ws":"churned","lat":40.69323,"lng":-73.969193,"gmv":2920,"ord":11,"last":"2025-12-03","d":100,"gm":0,"vendor":"Benzi M"},{"id":"92245","name":"Natural Market","type":"foodservice","raw":"sold","ws":"active","lat":40.701988,"lng":-73.927574,"gmv":3610,"ord":27,"last":"2026-03-12","d":1,"gm":0,"vendor":"Mo M"},{"id":"3621","name":"PARKVIEW MARKET 2","type":"convenience","raw":"reorder","ws":"active","lat":40.665798,"lng":-73.978897,"gmv":8740,"ord":19,"last":"2026-03-09","d":4,"gm":1040,"vendor":"Moe R"},{"id":"3947","name":"HEMO SPOT","type":"foodservice","raw":"sold","ws":"active","lat":40.678101,"lng":-73.985298,"gmv":4740,"ord":10,"last":"2026-03-03","d":10,"gm":160,"vendor":"Hussien Hussien"},{"id":"13938","name":"Salt & Pepper Deli & Grill","type":"foodservice","raw":"sold","ws":"active","lat":40.69408,"lng":-73.926727,"gmv":2020,"ord":11,"last":"2026-03-03","d":10,"gm":0,"vendor":"Ali Mendez"},{"id":"70809","name":"Healthy Way Organic Market","type":"grocery","raw":"reorder","ws":"cooled","lat":40.714691,"lng":-73.960823,"gmv":13400,"ord":28,"last":"2026-02-02","d":39,"gm":900,"vendor":"Sadek Alward"},{"id":"5370","name":"Mr Avocado","type":"foodservice","raw":"reorder","ws":"cooled","lat":40.698799,"lng":-73.926598,"gmv":1820,"ord":3,"last":"2026-01-31","d":41,"gm":400,"vendor":"New Manager"},{"id":"219","name":"Korean BTS Market","type":"grocery","raw":"lead","ws":"churned","lat":40.6814,"lng":-73.949997,"gmv":3280,"ord":21,"last":"2026-01-03","d":69,"gm":0,"vendor":"Eun Joo Yi"},{"id":"94008","name":"One stop health and market","type":"foodservice","raw":"sold","ws":"active","lat":40.689075,"lng":-73.924126,"gmv":9080,"ord":27,"last":"2026-03-03","d":10,"gm":0,"vendor":"Jimmy S"},{"id":"1561","name":"Late Night Stars Deli","type":"convenience","raw":"sold","ws":"active","lat":40.715099,"lng":-73.944702,"gmv":2190,"ord":13,"last":"2026-03-02","d":11,"gm":650,"vendor":"Ali H"},{"id":"2033","name":"BROOKLYN FARE","type":"grocery","raw":"sold","ws":"active","lat":40.688801,"lng":-73.985901,"gmv":7020,"ord":15,"last":"2026-03-10","d":3,"gm":1290,"vendor":"Felipe Torres"}];
+
+    const WS_META = {
+      active:  { label:"Recent buyer",  color:"#059669", bg:"#F0FDF4" },
+      cooled:  { label:"Slowing down",  color:"#D97706", bg:"#FFFBEB" },
+      churned: { label:"Hasn't bought lately", color:"#DC2626", bg:"#FEF2F2" },
+      new:     { label:"Never ordered", color:"#7C3AED", bg:"#FAF5FF" },
+    };
+    const TYPE_LABEL = { convenience:"Convenience", gas:"Gas Station", grocery:"Grocery", liquor:"Liquor", foodservice:"Food Service", tobacco:"Tobacco / Smoke", gym:"Gym", other:"Other Retail" };
+    const TYPE_ICON  = { convenience:"🏪", gas:"⛽", grocery:"🛒", liquor:"🍾", foodservice:"🍽️", tobacco:"🚬", gym:"💪", other:"📦" };
+
+    function StoreDetailCard({ store, onClose, onPitch, onWalkin }) {
+      const meta = WS_META[store.ws];
+      const opener = STATUS_SCRIPTS[store.ws];
       return (
-        <div style={{ fontFamily:"'DM Sans','Helvetica Neue',sans-serif", background:"#F2F3F5", minHeight:"100vh", color:"#111", maxWidth:420, margin:"0 auto" }}>
-          <div style={{ background:"white", borderBottom:"1px solid #EDEEF0", padding:"12px 16px", position:"sticky", top:0, zIndex:10 }}>
-            <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-              {screen !== "home" && <button onClick={() => setScreen("home")} style={{ background:"none", border:"none", cursor:"pointer", color:"#555", fontSize:20, padding:"0 4px 0 0", lineHeight:1 }}>‹</button>}
-              <div style={{ flex:1, fontSize:15, fontWeight:700, letterSpacing:"-0.3px" }}>{TITLES[screen]}</div>
-              <div style={{ fontSize:10, fontFamily:"DM Mono", color:"#bbb" }}>RepRally</div>
+        <div style={{ background:"white", border:`1.5px solid ${meta.color}40`, borderRadius:14, padding:"14px", marginBottom:12, boxShadow:"0 2px 10px rgba(0,0,0,0.06)" }}>
+          <div style={{ display:"flex", alignItems:"flex-start", gap:10, marginBottom:10 }}>
+            <div style={{ width:40, height:40, borderRadius:10, flexShrink:0, background:meta.bg, display:"flex", alignItems:"center", justifyContent:"center", fontSize:20 }}>{TYPE_ICON[store.type]||"📦"}</div>
+            <div style={{ flex:1, minWidth:0 }}>
+              <div style={{ fontSize:14, fontWeight:700, color:"#111", lineHeight:1.25 }}>{store.name||"Unnamed store"}</div>
+              <div style={{ display:"flex", gap:6, alignItems:"center", marginTop:4, flexWrap:"wrap" }}>
+                <span style={{ padding:"2px 8px", borderRadius:20, background:meta.bg, color:meta.color, fontSize:10, fontWeight:700, fontFamily:"DM Mono" }}>{meta.label}</span>
+                <span style={{ fontSize:11, color:"#888" }}>{TYPE_LABEL[store.type]||"Other"}</span>
+              </div>
+            </div>
+            {onClose && <button onClick={onClose} style={{ background:"none", border:"none", cursor:"pointer", color:"#bbb", fontSize:18, lineHeight:1 }}>×</button>}
+          </div>
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:6, marginBottom:10 }}>
+            <div style={{ background:"#F8F9FA", borderRadius:9, padding:"8px" }}><div style={{ fontSize:8, fontFamily:"DM Mono", color:"#aaa", marginBottom:2 }}>LIFETIME GMV</div><div style={{ fontSize:13, fontWeight:800, color:"#111" }}>${store.gmv.toLocaleString()}</div></div>
+            <div style={{ background:"#F8F9FA", borderRadius:9, padding:"8px" }}><div style={{ fontSize:8, fontFamily:"DM Mono", color:"#aaa", marginBottom:2 }}>ORDERS</div><div style={{ fontSize:13, fontWeight:800, color:"#111" }}>{store.ord}</div></div>
+            <div style={{ background:"#F8F9FA", borderRadius:9, padding:"8px" }}><div style={{ fontSize:8, fontFamily:"DM Mono", color:"#aaa", marginBottom:2 }}>LAST ORDER</div><div style={{ fontSize:13, fontWeight:800, color:"#111" }}>{store.d!=null?`${store.d}d`:"—"}</div></div>
+          </div>
+          {store.vendor && <div style={{ fontSize:11, color:"#888", marginBottom:10 }}>Contact: <strong style={{ color:"#555" }}>{store.vendor}</strong>{store.last?` · last ordered ${store.last}`:""}</div>}
+          {opener && (
+            <div style={{ background:meta.bg, border:`1px solid ${meta.color}30`, borderRadius:10, padding:"10px 12px", marginBottom:10 }}>
+              <div style={{ fontSize:9, fontFamily:"DM Mono", color:meta.color, letterSpacing:"1px", marginBottom:5 }}>{opener.icon} YOUR OPENER ({opener.label})</div>
+              <p style={{ fontSize:12, color:"#333", lineHeight:1.6, fontStyle:"italic" }}>{opener.script}</p>
+            </div>
+          )}
+          <div style={{ display:"flex", gap:8 }}>
+            <button onClick={onWalkin} style={{ flex:1, padding:"11px", borderRadius:10, border:"1.5px solid #E5E7EB", background:"white", color:"#444", fontSize:12, fontWeight:600, cursor:"pointer" }}>🚶 Walk-in guide</button>
+            <button onClick={onPitch} style={{ flex:1.4, padding:"11px", borderRadius:10, border:"none", background:meta.color, color:"white", fontSize:13, fontWeight:700, cursor:"pointer" }}>Pitch this store →</button>
+          </div>
+        </div>
+      );
+    }
+
+    function StoreFilters({ query, setQuery, statusFilter, setStatusFilter, typeFilter, setTypeFilter }) {
+      const typeOptions = useMemo(() => ["all", ...Array.from(new Set(STORES.map(s => s.type)))], []);
+      return (
+        <div>
+          <div style={{ position:"relative", marginBottom:8 }}>
+            <span style={{ position:"absolute", left:12, top:"50%", transform:"translateY(-50%)", fontSize:14, color:"#aaa" }}>🔍</span>
+            <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search store or vendor name…"
+              style={{ width:"100%", padding:"10px 12px 10px 36px", borderRadius:12, border:"1.5px solid #EDEEF0", background:"white", fontSize:13, fontFamily:"DM Sans", color:"#111", outline:"none" }} />
+            {query && <button onClick={() => setQuery("")} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", background:"none", border:"none", cursor:"pointer", color:"#aaa", fontSize:16, lineHeight:1 }}>×</button>}
+          </div>
+          <div style={{ display:"flex", gap:6, marginBottom:8, overflowX:"auto", paddingBottom:2 }}>
+            {[{k:"all",l:"All",c:"#111"},{k:"active",l:"Recent buyer",c:WS_META.active.color},{k:"cooled",l:"Slowing down",c:WS_META.cooled.color},{k:"churned",l:"Hasn't bought lately",c:WS_META.churned.color},{k:"new",l:"Never ordered",c:WS_META.new.color}].map(o => {
+              const sel = statusFilter===o.k;
+              return <button key={o.k} onClick={() => setStatusFilter(o.k)} style={{ flexShrink:0, padding:"6px 12px", borderRadius:20, border:sel?`2px solid ${o.c}`:"1.5px solid #EDEEF0", background:sel?o.c:"white", color:sel?"white":"#555", fontSize:11, fontWeight:600, cursor:"pointer", fontFamily:"DM Sans" }}>{o.l}</button>;
+            })}
+          </div>
+          <div style={{ display:"flex", gap:6, marginBottom:10, overflowX:"auto", paddingBottom:2 }}>
+            {typeOptions.map(t => {
+              const sel = typeFilter===t;
+              return <button key={t} onClick={() => setTypeFilter(t)} style={{ flexShrink:0, padding:"5px 11px", borderRadius:20, border:sel?"2px solid #0284C7":"1.5px solid #EDEEF0", background:sel?"#EFF6FF":"white", color:sel?"#0284C7":"#777", fontSize:11, fontWeight:600, cursor:"pointer", fontFamily:"DM Sans" }}>{t==="all"?"All types":`${TYPE_ICON[t]||""} ${TYPE_LABEL[t]||t}`}</button>;
+            })}
+          </div>
+        </div>
+      );
+    }
+
+    function StoreRow({ s, isSel, onClick }) {
+      const meta = WS_META[s.ws];
+      return (
+        <div onClick={onClick} style={{ background:"white", borderRadius:12, padding:"10px 12px", cursor:"pointer", border:isSel?`2px solid ${meta.color}`:"1.5px solid #EDEEF0", display:"flex", alignItems:"center", gap:10 }}>
+          <span style={{ width:8, height:8, borderRadius:"50%", background:meta.color, flexShrink:0 }} />
+          <div style={{ flex:1, minWidth:0 }}>
+            <div style={{ fontSize:12, fontWeight:600, color:"#111", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{s.name||"Unnamed store"}</div>
+            <div style={{ fontSize:10, color:"#999" }}>{TYPE_ICON[s.type]||"📦"} {TYPE_LABEL[s.type]||"Other"} · {meta.label}</div>
+          </div>
+          <div style={{ textAlign:"right", flexShrink:0 }}>
+            <div style={{ fontSize:12, fontWeight:700, color:"#111", fontFamily:"DM Mono" }}>${s.gmv.toLocaleString()}</div>
+            <div style={{ fontSize:9, color:"#aaa", fontFamily:"DM Mono" }}>{s.d!=null?`${s.d}d ago`:"no orders"}</div>
+          </div>
+        </div>
+      );
+    }
+
+    function useStoreFilter() {
+      const [query, setQuery] = useState("");
+      const [statusFilter, setStatusFilter] = useState("all");
+      const [typeFilter, setTypeFilter] = useState("all");
+      const filtered = useMemo(() => {
+        const q = query.toLowerCase().trim();
+        return STORES.filter(s => {
+          if (statusFilter !== "all" && s.ws !== statusFilter) return false;
+          if (typeFilter !== "all" && s.type !== typeFilter) return false;
+          if (q && !((s.name||"").toLowerCase().includes(q) || (s.vendor||"").toLowerCase().includes(q) || (TYPE_LABEL[s.type]||"").toLowerCase().includes(q))) return false;
+          return true;
+        }).sort((a,b) => b.gmv - a.gmv);
+      }, [query, statusFilter, typeFilter]);
+      return { query, setQuery, statusFilter, setStatusFilter, typeFilter, setTypeFilter, filtered };
+    }
+
+    function MapScreen({ onPitch, onWalkin }) {
+      const mapEl = useRef(null);
+      const mapRef = useRef(null);
+      const layerRef = useRef(null);
+      const [selected, setSelected] = useState(null);
+      const f = useStoreFilter();
+
+      useEffect(() => {
+        if (mapRef.current || !mapEl.current || !window.L) return;
+        const map = window.L.map(mapEl.current, { zoomControl:true, attributionControl:false }).setView([40.71, -73.93], 11);
+        window.L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", { maxZoom:19, subdomains:"abcd" }).addTo(map);
+        window.L.control.attribution({ prefix:false }).addAttribution("© OpenStreetMap © CARTO").addTo(map);
+        mapRef.current = map;
+        layerRef.current = window.L.layerGroup().addTo(map);
+        setTimeout(() => map.invalidateSize(), 100);
+      }, []);
+
+      useEffect(() => {
+        const map = mapRef.current, layer = layerRef.current;
+        if (!map || !layer || !window.L) return;
+        layer.clearLayers();
+        f.filtered.forEach(s => {
+          const meta = WS_META[s.ws];
+          const m = window.L.circleMarker([s.lat, s.lng], {
+            radius: selected && selected.id === s.id ? 9 : 6,
+            color: "#fff", weight: selected && selected.id === s.id ? 3 : 1.5,
+            fillColor: meta.color, fillOpacity: 0.9,
+          });
+          m.on("click", () => { setSelected(s); map.panTo([s.lat, s.lng]); });
+          m.addTo(layer);
+        });
+      }, [f.filtered, selected]);
+
+      const flyTo = s => { setSelected(s); const map = mapRef.current; if (map) map.flyTo([s.lat, s.lng], 15, { duration: 0.6 }); };
+      const counts = useMemo(() => { const c = { active:0, cooled:0, churned:0, new:0 }; f.filtered.forEach(s => { c[s.ws]++; }); return c; }, [f.filtered]);
+
+      return (
+        <div>
+          <StoreFilters {...f} />
+          <div style={{ position:"relative", borderRadius:14, overflow:"hidden", border:"1.5px solid #EDEEF0", marginBottom:10 }}>
+            <div ref={mapEl} style={{ height:300, width:"100%" }} />
+            <div style={{ position:"absolute", left:8, top:8, zIndex:500, background:"rgba(255,255,255,0.95)", borderRadius:10, padding:"6px 11px", boxShadow:"0 1px 6px rgba(0,0,0,0.12)", display:"flex", alignItems:"center", gap:6 }}>
+              <span style={{ fontSize:13 }}>📍</span>
+              <span style={{ fontSize:12, fontWeight:700, color:"#111" }}>New York</span>
+              <span style={{ fontSize:10, color:"#888", fontFamily:"DM Mono" }}>· NY metro area</span>
+            </div>
+            <div style={{ position:"absolute", left:8, bottom:8, zIndex:500, background:"rgba(255,255,255,0.95)", borderRadius:10, padding:"7px 9px", boxShadow:"0 1px 6px rgba(0,0,0,0.12)", display:"flex", gap:8, flexWrap:"wrap" }}>
+              {Object.entries(WS_META).map(([k,m]) => (
+                <div key={k} style={{ display:"flex", alignItems:"center", gap:4 }}>
+                  <span style={{ width:9, height:9, borderRadius:"50%", background:m.color, display:"inline-block" }} />
+                  <span style={{ fontSize:9, color:"#555", fontFamily:"DM Mono" }}>{m.label} {counts[k]}</span>
+                </div>
+              ))}
             </div>
           </div>
-          <div style={{ padding:"14px 14px 40px" }}>
-            {screen === "home" && (
+          {selected && <StoreDetailCard store={selected} onClose={() => setSelected(null)} onPitch={() => onPitch(selected)} onWalkin={() => onWalkin(selected)} />}
+          <div style={{ fontSize:10, fontFamily:"DM Mono", color:"#aaa", letterSpacing:"1px", marginBottom:8 }}>
+            {f.filtered.length} STORE{f.filtered.length!==1?"S":""} SHOWN · TAP TO LOCATE
+          </div>
+          <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
+            {f.filtered.slice(0, 40).map(s => <StoreRow key={s.id} s={s} isSel={selected && selected.id===s.id} onClick={() => flyTo(s)} />)}
+          </div>
+          {f.filtered.length > 40 && <div style={{ textAlign:"center", marginTop:10, fontSize:11, color:"#aaa", fontFamily:"DM Mono" }}>Showing top 40 here · use the Stores tab for the full list</div>}
+        </div>
+      );
+    }
+
+    function StoresScreen({ onPitch, onWalkin, onBrowseCatalog }) {
+      const [selected, setSelected] = useState(null);
+      const f = useStoreFilter();
+      return (
+        <div>
+          <div onClick={onBrowseCatalog} style={{ background:"#111", borderRadius:12, padding:"12px 14px", marginBottom:12, cursor:"pointer", display:"flex", alignItems:"center", gap:10 }}>
+            <span style={{ fontSize:20 }}>📦</span>
+            <div style={{ flex:1 }}>
+              <div style={{ fontSize:13, fontWeight:700, color:"white" }}>Browse catalog by store type</div>
+              <div style={{ fontSize:11, color:"#999" }}>See what to pitch for any store format</div>
+            </div>
+            <span style={{ color:"#777", fontSize:16 }}>›</span>
+          </div>
+          <StoreFilters {...f} />
+          {selected && <StoreDetailCard store={selected} onClose={() => setSelected(null)} onPitch={() => onPitch(selected)} onWalkin={() => onWalkin(selected)} />}
+          <div style={{ fontSize:10, fontFamily:"DM Mono", color:"#aaa", letterSpacing:"1px", marginBottom:8 }}>
+            {f.filtered.length} STORE{f.filtered.length!==1?"S":""}{f.query?` MATCHING "${f.query.toUpperCase()}"`:""}
+          </div>
+          {f.filtered.length === 0 && (
+            <div style={{ textAlign:"center", padding:"30px 20px", color:"#bbb" }}>
+              <div style={{ fontSize:30, marginBottom:6 }}>📍</div>
+              <div style={{ fontSize:13, fontWeight:600 }}>No stores match</div>
+              <div style={{ fontSize:11, marginTop:4 }}>Try clearing a filter or search</div>
+            </div>
+          )}
+          <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
+            {f.filtered.map(s => <StoreRow key={s.id} s={s} isSel={selected && selected.id===s.id} onClick={() => setSelected(s)} />)}
+          </div>
+        </div>
+      );
+    }
+
+    function App() {
+      const [tab, setTab] = useState("map");        // map | stores | tactics
+      const [sub, setSub] = useState(null);         // null | catalog | walkin
+      const [pitchStoreType, setPitchStoreType] = useState(null);
+      const APP_NAME = "Northwind";
+
+      const goPitchStore = store => { setPitchStoreType(store.type); setSub("catalog"); };
+      const goWalkinStore = store => { setPitchStoreType(store.type); setSub("walkin"); };
+      const openCatalog = () => { setPitchStoreType(null); setSub("catalog"); };
+
+      const TAB_TITLE = { map:"Store Map", stores:"Stores", tactics:"Sales Tactics" };
+      const SUB_TITLE = { catalog:"What to Pitch", walkin:"Walk-In Guide" };
+      const title = sub ? SUB_TITLE[sub] : TAB_TITLE[tab];
+
+      const TABS = [
+        { k:"map",     icon:"🗺️", label:"Map" },
+        { k:"stores",  icon:"🏬", label:"Stores" },
+        { k:"tactics", icon:"🎙", label:"Sales Tactics" },
+      ];
+
+      return (
+        <div style={{ fontFamily:"'DM Sans','Helvetica Neue',sans-serif", background:"#F2F3F5", minHeight:"100vh", color:"#111", maxWidth:420, margin:"0 auto", position:"relative" }}>
+          {/* Header */}
+          <div style={{ background:"white", borderBottom:"1px solid #EDEEF0", padding:"12px 16px", position:"sticky", top:0, zIndex:10 }}>
+            <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+              {sub && <button onClick={() => setSub(null)} style={{ background:"none", border:"none", cursor:"pointer", color:"#555", fontSize:20, padding:"0 4px 0 0", lineHeight:1 }}>‹</button>}
+              <div style={{ flex:1, fontSize:15, fontWeight:700, letterSpacing:"-0.3px" }}>{title}</div>
+              <div style={{ fontSize:11, fontFamily:"DM Mono", color:"#bbb", fontWeight:600 }}>{APP_NAME}</div>
+            </div>
+          </div>
+
+          {/* Content */}
+          <div style={{ padding:"14px 14px 90px" }}>
+            {sub === "catalog" && <CatalogScreen initialStoreType={pitchStoreType} />}
+            {sub === "walkin"  && <WalkInGuide onFinish={() => setSub("catalog")} />}
+
+            {!sub && tab === "map"    && <MapScreen onPitch={goPitchStore} onWalkin={goWalkinStore} />}
+            {!sub && tab === "stores" && <StoresScreen onPitch={goPitchStore} onWalkin={goWalkinStore} onBrowseCatalog={openCatalog} />}
+            {!sub && tab === "tactics" && (
               <div>
-                <div onClick={() => setScreen("walkin")} style={{ background:"#111", borderRadius:16, padding:"20px 18px", marginBottom:12, cursor:"pointer", position:"relative", overflow:"hidden" }}>
-                  <div style={{ position:"absolute", right:12, top:12, fontSize:48, opacity:0.07 }}>🚶</div>
-                  <div style={{ fontSize:10, fontFamily:"DM Mono", color:"#aaa", letterSpacing:"1px", marginBottom:6 }}>STEP 1 — START HERE</div>
-                  <div style={{ fontSize:18, fontWeight:800, color:"white", marginBottom:5, letterSpacing:"-0.4px" }}>Walk Into a Store</div>
-                  <div style={{ fontSize:12, color:"#888", lineHeight:1.5 }}>Observe shelves → check store status → get your pitch list</div>
-                  <div style={{ marginTop:12, display:"inline-flex", alignItems:"center", gap:6, background:"white", color:"#111", padding:"6px 14px", borderRadius:20, fontSize:12, fontWeight:700 }}>Start guide →</div>
-                </div>
-                <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginBottom:14 }}>
-                  <div onClick={() => setScreen("catalog")} style={{ background:"white", borderRadius:14, padding:"14px", cursor:"pointer", border:"1.5px solid #EDEEF0" }}><div style={{ fontSize:22, marginBottom:6 }}>📦</div><div style={{ fontSize:13, fontWeight:700, marginBottom:2 }}>What to Pitch</div><div style={{ fontSize:11, color:"#999" }}>By store type</div></div>
-                  <div onClick={() => setScreen("objections")} style={{ background:"white", borderRadius:14, padding:"14px", cursor:"pointer", border:"1.5px solid #EDEEF0" }}><div style={{ fontSize:22, marginBottom:6 }}>🚧</div><div style={{ fontSize:13, fontWeight:700, marginBottom:2 }}>Objections</div><div style={{ fontSize:11, color:"#999" }}>{OBJECTIONS.length} scripts ready</div></div>
-                  <div onClick={() => setScreen("tactics")} style={{ background:"white", borderRadius:14, padding:"14px", cursor:"pointer", border:"1.5px solid #E9D5FF", gridColumn:"span 2" }}>
-                    <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-                      <span style={{ fontSize:22 }}>🎙</span>
-                      <div style={{ flex:1 }}>
-                        <div style={{ fontSize:13, fontWeight:700, marginBottom:1 }}>Sales Tactics</div>
-                        <div style={{ fontSize:11, color:"#999" }}>Product-led vs outcome-driven · 20-sec pitches · pushback scripts</div>
-                      </div>
-                      <span style={{ fontSize:14, color:"#C4B5FD" }}>›</span>
-                    </div>
-                  </div>
-                </div>
-                <div style={{ fontSize:10, fontFamily:"DM Mono", color:"#aaa", letterSpacing:"1px", marginBottom:8 }}>🔥 ACTIVE DEALS — PITCH THESE FIRST</div>
+                <TacticsScreen />
+                <div style={{ fontSize:10, fontFamily:"DM Mono", color:"#aaa", letterSpacing:"1px", margin:"18px 0 8px" }}>🔥 ACTIVE DEALS — PITCH THESE FIRST</div>
                 {BRANDS.filter(b=>b.hasDeal).map(brand => (
                   <div key={brand.id} style={{ background:"white", borderRadius:12, padding:"10px 12px", marginBottom:6, border:"1.5px solid #FED7AA", display:"flex", alignItems:"center", gap:10 }}>
                     <div style={{ width:36, height:36, borderRadius:8, flexShrink:0, background:brandColor(brand.id), display:"flex", alignItems:"center", justifyContent:"center", fontSize:10, fontWeight:700, fontFamily:"DM Mono", color:"white" }}>{getInitials(brand.name)}</div>
@@ -753,10 +968,19 @@
                 </div>
               </div>
             )}
-            {screen === "walkin" && <WalkInGuide onFinish={() => setScreen("catalog")} />}
-            {screen === "catalog" && <CatalogScreen />}
-            {screen === "objections" && <ObjectionScreen />}
-            {screen === "tactics" && <TacticsScreen />}
+          </div>
+
+          {/* Bottom tab bar */}
+          <div style={{ position:"fixed", left:"50%", transform:"translateX(-50%)", bottom:0, width:"100%", maxWidth:420, background:"white", borderTop:"1px solid #EDEEF0", display:"flex", zIndex:20, boxShadow:"0 -2px 12px rgba(0,0,0,0.04)" }}>
+            {TABS.map(t => {
+              const active = !sub && tab===t.k;
+              return (
+                <button key={t.k} onClick={() => { setSub(null); setTab(t.k); }} style={{ flex:1, padding:"9px 4px 11px", border:"none", background:"none", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:3 }}>
+                  <span style={{ fontSize:19, opacity:active?1:0.45, filter:active?"none":"grayscale(1)" }}>{t.icon}</span>
+                  <span style={{ fontSize:10, fontWeight:active?700:500, color:active?"#0284C7":"#999", fontFamily:"DM Sans" }}>{t.label}</span>
+                </button>
+              );
+            })}
           </div>
         </div>
       );
